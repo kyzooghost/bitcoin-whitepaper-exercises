@@ -3,8 +3,6 @@
 var path = require("path");
 var fs = require("fs");
 var crypto = require("crypto");
-var openpgp = require("openpgp");
-const { create } = require("domain");
 
 var Blockchain = require(path.join(__dirname,"blockchain.js"));
 
@@ -34,16 +32,12 @@ main().catch(console.log);
 // **********************************
 
 async function main() {
-		let status;
-
+	
 	await spend(
 		/*from=*/wallet.accounts[PUB_KEY_TEXT_1],
 		/*to=*/wallet.accounts[PUB_KEY_TEXT_2],
 		/*amount=*/13
 	);
-
-		status = (await Blockchain.verifyChain(Blockchain.chain))
-		console.log(status);
 
 	await spend(
 		/*from=*/wallet.accounts[PUB_KEY_TEXT_2],
@@ -51,18 +45,12 @@ async function main() {
 		/*amount=*/5
 	);
 
-		status = (await Blockchain.verifyChain(Blockchain.chain))
-		console.log(status);
-
 	await spend(
 		/*from=*/wallet.accounts[PUB_KEY_TEXT_1],
 		/*to=*/wallet.accounts[PUB_KEY_TEXT_2],
 		/*amount=*/31
 	);
-
-		status = (await Blockchain.verifyChain(Blockchain.chain))
-		console.log(status);
-
+		
 	try {
 		await spend(
 			/*from=*/wallet.accounts[PUB_KEY_TEXT_2],
@@ -74,8 +62,8 @@ async function main() {
 		console.log(err);
 	}
 
-	// console.log(accountBalance(PUB_KEY_TEXT_1));
-	// console.log(accountBalance(PUB_KEY_TEXT_2));
+	console.log(accountBalance(PUB_KEY_TEXT_1));
+	console.log(accountBalance(PUB_KEY_TEXT_2));
 	console.log(await Blockchain.verifyChain(Blockchain.chain));
 }
 
@@ -93,7 +81,6 @@ async function spend(fromAccount,toAccount,amountToSpend) {
 		inputs: [],
 		outputs: [],
 	};
-
 
 	//sortedInput = Sorted array of fromAccount's outputs, in descending order of amount
 	const sortedInputs = fromAccount.outputs.sort((a, b) => {return (b.amount - a.amount)});
@@ -125,7 +112,8 @@ async function spend(fromAccount,toAccount,amountToSpend) {
 	
 	// Sign the UTXOs we will spend, and add them to trData.inputs
 	for (let input of spent_sortedInputs) {
-		trData.inputs.push(await Blockchain.authorizeInput(input, fromAccount.privKey))
+		const newInput = {...input}
+		trData.inputs.push(await Blockchain.authorizeInput(newInput, fromAccount.privKey))
 	}
  
 	// Remove UTXOs for fromAccount (reassign to sliced array, with spent UTXOs removed)
@@ -168,19 +156,6 @@ async function spend(fromAccount,toAccount,amountToSpend) {
 	console.log("BLOCK CREATED, BLOCK LENGTH: ", Blockchain.chain.blocks.length)
 }
 
-// Account has output, that must be spent as input to other account
-// Output = Wallet balances
-// In Tx, spent output as input to other account
-// List of output updated in each Tx
-// Tx.data = object: hold [input], [output]: each array element hold object with "source"/"target" or "signature"
-// spend(...) = Create tx.data, verify input, create Tx, insert into block
-// Sort output from greatest to least, spend biggest one first
-// [Selected outputs] must > spending amount, [selected output => input in tx data]
-// Include signature in private key
-// If [outputs] > spending amount, another output for refund
-// If not enough output - error and abort
-
-
 function accountBalance(account) {
 	let balance = 0;
 	let wallet_accounts = Object.keys(wallet.accounts)
@@ -190,40 +165,4 @@ function accountBalance(account) {
 	}	
 	
 	return balance;
-}
-
-/* MY OWN HELPER FUNCTIONS */
-
-function writeFile(name, data) {
-    fs.writeFile(`${name}.txt`,JSON.stringify(data), function (err) {
-        if (err) return console.log(err)
-        console.log(`${name}.txt created`)
-    })
-}
-
-async function verifySignature(signature,pubKey) {
-	try {
-		let pubKeyObj = openpgp.key.readArmored(pubKey).keys[0];
-
-		let options = {
-			message: openpgp.cleartext.readArmored(signature),
-			publicKeys: pubKeyObj,
-		};
-
-		return (await openpgp.verify(options)).signatures[0].valid;
-	}
-	catch (err) {}
-
-	return false;
-}
-
-async function createSignature(text,privKey) {
-	var privKeyObj = openpgp.key.readArmored(privKey).keys[0];
-
-	var options = {
-		data: text,
-		privateKeys: [privKeyObj],
-	};
-
-	return (await openpgp.sign(options)).data;
 }
