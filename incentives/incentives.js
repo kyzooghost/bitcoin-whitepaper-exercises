@@ -36,7 +36,7 @@ Blockchain.blocks.push({
 	timestamp: Date.now(),
 });
 
-var transactionPool = [];
+let transactionPool = [];
 
 addPoem();
 processPool();
@@ -45,16 +45,46 @@ countMyEarnings();
 
 // **********************************
 
-function addPoem() {
-	// TODO: add lines of poem as transactions to the transaction-pool
+	for (let line of poem) {
+		transactionPool.push({
+			data: line,
+			fee: 1 + Math.floor(Math.random() * 10),
+		})
+	}
 }
 
 function processPool() {
-	// TODO: process the transaction-pool in order of highest fees
+	transactionPool.sort((a, b) => {return(b.fee - a.fee)}) //Sort transaction pool by descending order of fee
+
+	let shifted_tx;
+	
+	while (transactionPool.length > 0) {
+		let blockFee = transactionPool[0].fee
+		let counter = 0;
+		let selected_transactions = [{blockFee: blockFee, account: PUB_KEY_TEXT}]
+	
+		while ((counter < maxBlockSize) && (transactionPool[0].fee == blockFee)) {
+			shifted_tx = transactionPool.shift();
+			selected_transactions.push(createTransaction(shifted_tx))
+			counter += 1;
+			if (transactionPool.length == 0) {break}
+		}
+	
+		Blockchain.blocks.push(createBlock(selected_transactions))
+	}
 }
 
 function countMyEarnings() {
 	// TODO: count up block-fees and transaction-fees
+	let balance = 0;
+
+	for (const block of Blockchain.blocks) {
+		if (block.index != 0) {
+			balance += block.data[0].blockFee * (block.data.length - 1)
+		}
+	}
+
+	console.log("Earned: ", balance)
 }
 
 function createBlock(data) {
