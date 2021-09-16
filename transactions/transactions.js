@@ -35,18 +35,36 @@ Blockchain.blocks.push({
 });
 
 addPoem()
-.then(checkPoem)
+.then(checkPoem(Blockchain))
 .catch(console.log);
 
 
 // **********************************
 
+function createTransaction(data) {
+	const transaction = {
+		data: data
+	}
+	transaction.hash = transactionHash(transaction)
+	return transaction;
+}
+
+async function authorizeTransaction(transaction) {
+	transaction.pubKey = PUB_KEY_TEXT;
+	transaction.signature = (await createSignature(transaction.hash, PRIV_KEY_TEXT));
+	return transaction;
+}
+
 async function addPoem() {
 	var transactions = [];
-
+	let incompleteTx;
+	
 	// TODO: add poem lines as authorized transactions
-	// for (let line of poem) {
-	// }
+	
+	for (let line of poem) {
+		incompleteTx = createTransaction(line);
+		transactions.push(await authorizeTransaction(incompleteTx))
+	}
 
 	var bl = createBlock(transactions);
 
@@ -56,7 +74,8 @@ async function addPoem() {
 }
 
 async function checkPoem(chain) {
-	console.log(await verifyChain(chain));
+	let status = await verifyChain(chain);
+	console.log("Do we have a valid blockchain? " + status)
 }
 
 function createBlock(data) {
@@ -129,6 +148,7 @@ async function verifyBlock(bl) {
 		if (!Array.isArray(bl.data)) return false;
 
 		// TODO: verify transactions in block
+		for (let transaction of bl.data) {await verifyTransaction(transaction)}
 	}
 
 	return true;
@@ -143,4 +163,11 @@ async function verifyChain(chain) {
 	}
 
 	return true;
+}
+
+async function verifyTransaction(transaction) {
+	if (transaction.hash !== transactionHash({data: transaction.data})) {return false}
+	if (transaction.pubKey === null || transaction.signature === null || transaction.pubKey === undefined || transaction.signature === undefined ) {return false}	
+	if (!(await verifySignature(transaction.signature, PUB_KEY_TEXT))) {return false}
+	return true
 }
