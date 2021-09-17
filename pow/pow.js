@@ -15,11 +15,11 @@ var poem = [
 	"especially yours can heal a frozen heart",
 ];
 
-var difficulty = 10;
-
 var Blockchain = {
 	blocks: [],
 };
+
+var difficulty = 30;
 
 // Genesis block
 Blockchain.blocks.push({
@@ -37,7 +37,6 @@ for (let line of poem) {
 	difficulty++;
 }
 
-
 // **********************************
 
 function createBlock(data) {
@@ -54,11 +53,28 @@ function createBlock(data) {
 }
 
 function blockHash(bl) {
+	// Want loop to repeat until hashIsLowEnough(hash) returns true
+
+	while (true) {
+		bl.nonce = Math.floor(Math.random() * 1E7)
+		const hash = crypto.createHash("sha256").update(JSON.stringify(bl)).digest("hex");
+
+		if (hashIsLowEnough(hash)) {
+			return hash
+		}
+	}
+	
 	// TODO
 }
 
 function hashIsLowEnough(hash) {
-	// TODO
+	const hash_binary = hex2bin(hash)
+	const hash_binary_substring = hash_binary.substring(0, difficulty)
+
+	const empty = ''
+	const difficulty_binary = empty.padStart(difficulty, '0')
+
+	return(hash_binary_substring == difficulty_binary)
 }
 
 function verifyBlock(bl) {
@@ -90,4 +106,34 @@ function verifyChain(chain) {
 	}
 
 	return true;
+}
+
+/* HELPER FUNCTIONS */
+
+function hex2bin(hex){
+	let out = "";
+
+	for(let c of hex) {
+        switch(c) {
+            case '0': out += "0000"; break;
+            case '1': out += "0001"; break;
+            case '2': out += "0010"; break;
+            case '3': out += "0011"; break;
+            case '4': out += "0100"; break;
+            case '5': out += "0101"; break;
+            case '6': out += "0110"; break;
+            case '7': out += "0111"; break;
+            case '8': out += "1000"; break;
+            case '9': out += "1001"; break;
+            case 'a': out += "1010"; break;
+            case 'b': out += "1011"; break;
+            case 'c': out += "1100"; break;
+            case 'd': out += "1101"; break;
+            case 'e': out += "1110"; break;
+            case 'f': out += "1111"; break;
+            default: return "";
+        }
+	}
+
+	return out;
 }
